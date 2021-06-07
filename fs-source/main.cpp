@@ -3,7 +3,7 @@
 import file_system;
 
 int main() {
-	build_package_file("c:\\projects\\kdtree", "d:\\files.package");
+	build_package_file("d:\\input", "d:\\content.package");
 
 	while (1) {
 		Sleep(100);
