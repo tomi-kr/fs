@@ -16,7 +16,7 @@ export module file_system;
 namespace fs = std::filesystem;
 
 
-void report(std::string log) {
+export void report(std::string log) {
     OutputDebugStringA(log.c_str());
     std::cout << log;
 }
@@ -28,6 +28,12 @@ export struct File_System {
 
 
 export struct File {
+
+    enum {
+        Open_Mode_Write,
+        Open_Mode_Read
+    };
+
     std::fstream storage;
 
     ~File() {
@@ -52,8 +58,12 @@ export struct File {
     }
 
     template <typename Pod_Type>
-    void write_pod(const Pod_Type* ptr) {
-        write_buffer(ptr, sizeof(Pod_Type));
+    void write_pod(const Pod_Type &ptr) {
+        write_buffer(&ptr, sizeof(Pod_Type));
+    }
+
+    void write_string(const std::string_view string) {
+        write_buffer(string.data(), string.size());
     }
 
     void write_buffer(const void* buffer, std::size_t size) {
@@ -61,7 +71,12 @@ export struct File {
     }
 
     void write_buffer(const std::vector<char> &bytes) {
-        write_buffer((char*)&bytes[0], bytes.size());
+        write_buffer(&bytes[0], bytes.size());
+    }
+
+    void rewind() {
+        storage.flush();
+        storage.seekg(0, std::ios::beg);
     }
 
     bool good() {
@@ -109,12 +124,12 @@ export void build_package_file(std::string_view input_folder_name, std::string_v
         return;
     }
     
-    package.write_pod(&start_offset); // placeholder for the total payload size / header offset
+    package.write_pod(uint64_t(0)); // placeholder for the total payload size / header offset
 
     //
     // Skip the first 8 bytes as we use it to store the header offset, so the 1st file starts on the 9th byte in the package file.
     //
-    start_offset += sizeof(start_offset);
+    start_offset += sizeof(uint64_t);
 
     for (auto& p : fs::recursive_directory_iterator(input_folder_name.data())) {
         if (p.is_regular_file()) {
@@ -131,11 +146,20 @@ export void build_package_file(std::string_view input_folder_name, std::string_v
 
             // keep track of this for the header information
             input_files.push_back({.start_offset = start_offset, .size = current_file_size, .name = path});
-            start_offset += current_file_size;
-
-            report(path + " " + std::to_string(current_file_size) + " bytes\n");
+            report("file: " + path + " start_offset: " + std::to_string(start_offset) + " current_file_size: " + std::to_string(current_file_size) + " \n");
+            start_offset += current_file_size;            
         }
     }
+
+    for (const File_Info& info : input_files) {
+        package.write_pod(info.start_offset);
+        package.write_pod(info.size);
+        package.write_string(info.name);
+        package.write_pod(char(0));
+    }
+
+    package.rewind();
+    package.write_pod(start_offset);
 
     report("\nFound " + std::to_string(input_files.size()) + " files.\n");
 }
