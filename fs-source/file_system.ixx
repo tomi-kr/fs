@@ -9,7 +9,6 @@ module;
 #include <unordered_map>
 #include <Windows.h>
 
-
 export module file_system;
 
 
@@ -87,19 +86,25 @@ export struct File {
         return storage.bad();
     }
 
-    static std::vector<char> vector_file(std::string_view file_name)
-    {
+    static std::vector<char> vector_file(std::string_view file_name) {
         std::vector<char> result;
-        std::streampos file_size;
-        std::ifstream file(file_name.data(), std::ios::binary);
+        
+        // std::ifstream is a lot slower for some reason
+        FILE* file = NULL;
+        uint64_t file_size = 0;
 
-        file.seekg(0, std::ios::end);
-        file_size = file.tellg();
-        file.seekg(0, std::ios::beg);
+        fopen_s(&file, file_name.data(), "rb");
+        if (!file) {
+            return result;
+        }
 
-        result.reserve(file_size);
-        result.insert(result.begin(), std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
-
+        fseek(file, 0, SEEK_END);
+        file_size = ftell(file);
+        fseek(file, 0, SEEK_SET);
+        result.resize(file_size);
+        
+        fread(&result[0], sizeof(char), file_size, file);
+        fclose(file);
         return result;
     }
 };
