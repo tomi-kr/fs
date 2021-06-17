@@ -27,28 +27,31 @@ export struct File_System {
 
 
 export struct File {
-
     enum {
         Open_Mode_Write,
         Open_Mode_Read
     };
 
-    std::fstream storage;
+    FILE* storage = NULL;
 
     ~File() {
-        storage.close();
+        close();
     }
 
     void close() {
-        storage.close();
+        if (storage) {
+            fflush(storage);
+            fclose(storage);
+            storage = NULL;
+        }
     }
 
     bool open_write(std::string_view file_name) {
         close();
-
-        storage.open(file_name, std::ios::out | std::ios::binary);
-        if (!storage.good()) {
-            report("open_write(): storage is bad!\n");
+        
+        errno_t error = fopen_s(&storage, file_name.data(), "wb");        
+        if (error) {
+            report("open_write(): error code is " + std::to_string(error) + "\n");
 
             return false;
         }
@@ -66,7 +69,7 @@ export struct File {
     }
 
     void write_buffer(const void* buffer, std::size_t size) {
-        storage.write((char*)buffer, size);
+        fwrite(buffer, 1, size, storage);
     }
 
     void write_buffer(const std::vector<char> &bytes) {
@@ -74,16 +77,12 @@ export struct File {
     }
 
     void rewind() {
-        storage.flush();
-        storage.seekg(0, std::ios::beg);
+        fflush(storage);
+        fseek(storage, 0, SEEK_SET);
     }
 
     bool good() {
-        return storage.good();
-    }
-
-    bool bad() {
-        return storage.bad();
+        return storage != NULL;
     }
 
     static std::vector<char> vector_file(std::string_view file_name) {

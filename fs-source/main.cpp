@@ -10,7 +10,7 @@ int main() {
 	double start = High_Res_Timer::msec();
 
 	//build_package_file("d:\\input\\", "d:\\content.package");
-	build_package_file("c:\\projects\\quakespasm", "d:\\content.package");
+	build_package_file("d:\\input", "d:\\content.package");
 
 
 	double end = High_Res_Timer::msec();
